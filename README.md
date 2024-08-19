@@ -16,10 +16,14 @@ modelling-ht-and-defence/
 ├── other_functions.py               # Functions to visualise the training results
 ├── hyperparameters.csv              # (Tuned) hyperparameter values
 ├── regagent-parameters              # Folder containing trained regular agents neural networks
+├── results                          # Folder containing R scripts for data analysis and visualisation
+    ├── exp1-results                 # Data collected from experiment 1
+    ├── exp2-results                 # Data collected from experiment 2
+    ├── plots                        # Figures
 ├── R-scripts                        # Folder containing R scripts for data analysis and visualisation
-    ├── ch3-exp1-analysis.R          # R script for regular agents' behaviour analysis
-    ├── ch3-exp2-attack-analysis.R   # R script for attacker behaviour analysis
-    ├── ch3-exp2-defence-analysis.R  # R script for defender behaviour analysis
+    ├── ch3-exp1-analysis.R          # R script for analysing and visualising experiment 1 data
+    ├── ch3-exp2-attack-analysis.R   # R script for analysing and visualising attacker behaviour
+    ├── ch3-exp2-defence-analysis.R  # R script for analysing and visualising defender behaviour
 └── README.md                        # Project documentation
 ```
 ## Prerequisits
@@ -34,6 +38,13 @@ The following Python libraries are required:
 - gymnasium (version 0.29.1 or higher)
 - networkx (version 3.0 or higher)
 - pettingzoo (version 1.24.1 or higher)
+
+R version 4.3.1 or higher version is required for data analysis and visualisation.
+
+The following R libraries are required:
+- readr (version 2.1.4 or higher)
+- ggplot2 (version 3.4.4 or higher)
+- zoo (version 1.8 or higher)
 ```
 ## Run experiments
 ```
@@ -42,3 +53,12 @@ python train_regular_agents.py
 # Run experiment 2
 python train_marl.py
 ```
+## Results
+Results will be saved to ```/results``` directory. Experiment 1 results are located in ```/results/exp1-results``` and experiment 2 results are located in ```/results/exp2-results```.
+
+Plots generated with R scripts using data generated during training are located in ```/results/plots```.
+
+Directory ```/regagent-parameters``` contains trained deep neural networks from experiment 1 that are used in experiment 2.
+
+## Contact
+For any questions or issues, please feel free to contact [kart.padur.20@ucl.ac.uk] and I will be happy to assist.
