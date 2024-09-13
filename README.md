@@ -1,20 +1,22 @@
 # Code for "Modelling hybrid threats and defensive countermeasures"
 ## Introduction
-Hybrid attacks are a growing concern due to their potential to undermine trust and disrupt social stability. Modelling attacker and defender behaviour is important for identifying potential attack strategies and determining effective countermeasures. In our approach both attackers and defenders are deep reinforcement learning agents that adapt their strategies against their opponents during training. We demonstrate the feasibility of this MARL approach in deriving stable policies for both agents.
+Hybrid attacks are a growing concern due to their potential to undermine trust and disrupt social stability. Modelling attacker and defender behaviour is essential for identifying potential attack strategies and determining effective countermeasures. In our approach, attackers and defenders are deep reinforcement learning agents adapting their strategies to their opponents during training. We demonstrate the feasibility of this MARL approach in deriving stable policies for both agents.
 
 ## Project structure
 ```
 modelling-ht-and-defence/
 ├── train_regular_agents.py          # Experiment for training regular agents (experiment 1)
 ├── train_marl.py                    # Experiment for training attackers and defenders (experiment 2)
-├── environment.py                   # Environment setup
+├── environment_exp1.py              # Environment setup for experiment 1
+├── environment_exp2.py              # Environment setup for experiment 2
 ├── a2c_agent.py                     # Regular agents' behaviour in the environment
 ├── a2c_def_agent.py                 # Defenders' behaviour in the environment
 ├── a2c_mal_agent.py                 # Attackers' behaviour in the environment
 ├── nns.py                           # Architecture of deep neural networks
-├── data_analysis.py                 # Functions to collect relevant training data
-├── other_functions.py               # Functions to visualise the training results
+├── data_analysis.py                 # Functions to analyse training data
+├── other_functions.py               # Functions to visualise training results
 ├── hyperparameters.csv              # (Tuned) hyperparameter values
+├── parameters.csv                   # Parameter values
 ├── regagent-parameters              # Folder containing trained regular agents neural networks
 ├── results                          # Folder containing R scripts for data analysis and visualisation
     ├── exp1-results                 # Data collected from experiment 1
