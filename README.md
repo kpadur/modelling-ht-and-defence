@@ -27,6 +27,8 @@ modelling-ht-and-defence/
     ├── ch3-exp2-defence-analysis.R  # R script for analysing and visualising defender behaviour
 └── README.md                        # Project documentation
 ```
+## License
+MIT
 ## Prerequisits
 ```
 Python 3.10 or higher version is required.
