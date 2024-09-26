@@ -20,11 +20,12 @@ modelling-ht-and-defence/
 ├── results                          # Folder containing R scripts for data analysis and visualisation
     ├── exp1-results                 # Data collected from experiment 1
     ├── exp2-results                 # Data collected from experiment 2
-    ├── plots                        # Figures
+    └── plots                        # Figures
 ├── R-scripts                        # Folder containing R scripts for data analysis and visualisation
     ├── ch3-exp1-analysis.R          # R script for analysing and visualising experiment 1 data
     ├── ch3-exp2-attack-analysis.R   # R script for analysing and visualising attacker behaviour
-    ├── ch3-exp2-defence-analysis.R  # R script for analysing and visualising defender behaviour
+    └── ch3-exp2-defence-analysis.R  # R script for analysing and visualising defender behaviour
+├── LICENSE.md                       # License
 └── README.md                        # Project documentation
 ```
 ## License
