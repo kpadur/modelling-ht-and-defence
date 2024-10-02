@@ -30,7 +30,7 @@ modelling-ht-and-defence/
 ```
 ## License
 MIT
-## Prerequisits
+## Prerequisites
 ```
 Python 3.10 or higher version is required.
 
