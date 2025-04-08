@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 
 class Attacker1_nn(torch.nn.Module):
     def __init__(self, state_size, n_stage_actions):
@@ -34,8 +35,8 @@ class Attacker2_nn(torch.nn.Module):
         
         state_dim = state_size
         self.l1 = torch.nn.Linear(state_dim, 256)
-        self.l2 = torch.nn.Linear(256, 198)
-        self.l3 = torch.nn.Linear(198, 128)
+        self.l2 = torch.nn.Linear(256, 192)
+        self.l3 = torch.nn.Linear(192, 128)
         self.l4 = torch.nn.Linear(128, 64)
         self.actor = torch.nn.Linear(64, self.n_cyber_actions)
         self.critic = torch.nn.Linear(64, 1)
@@ -57,8 +58,8 @@ class Attacker3_nn(torch.nn.Module):
         
         state_dim = state_size
         self.l1 = torch.nn.Linear(state_dim, 256)
-        self.l2 = torch.nn.Linear(256, 198)
-        self.l3 = torch.nn.Linear(198, 128)
+        self.l2 = torch.nn.Linear(256, 192)
+        self.l3 = torch.nn.Linear(192, 128)
         self.l4 = torch.nn.Linear(128, 64)
         self.actor = torch.nn.Linear(64, self.n_misinfo_actions)
         self.critic = torch.nn.Linear(64, 1)
@@ -122,11 +123,12 @@ class Action_nn(torch.nn.Module):
         # Neural network
         state_dim = state_shape
 
+        # Define layers
         self.l1 = torch.nn.Linear(state_dim, 192)
         self.l2 = torch.nn.Linear(192, 128)
         self.l3 = torch.nn.Linear(128, 64)
         self.actor = torch.nn.Linear(64, self.n_actions)
-        self.critic = torch.nn.Linear(64, 1) # 1 represents state value V(s)
+        self.critic = torch.nn.Linear(64, 1)  # 1 represents state value V(s)
 
     def forward(self, s):
         # For actions
@@ -141,21 +143,24 @@ class Opinion_nn(torch.nn.Module):
     def __init__(self, state_shape, n_opinions):
         super().__init__()
         self.n_opinions = n_opinions
- 
+        
         # Neural network
         state_dim = state_shape
 
-        self.l1 = torch.nn.Linear(state_dim, 192)
-        self.l2 = torch.nn.Linear(192, 128)
-        self.l3 = torch.nn.Linear(128, 64)
+        # Define layers
+        self.l1 = torch.nn.Linear(state_dim, 256)
+        self.l2 = torch.nn.Linear(256, 192)
+        self.l3 = torch.nn.Linear(192, 128)
+        self.l4 = torch.nn.Linear(128, 64)
         self.actor = torch.nn.Linear(64, self.n_opinions)
-        self.critic = torch.nn.Linear(64, 1)
+        self.critic = torch.nn.Linear(64, 1)  # 1 represents state value V(s)
 
     def forward(self, s):
-        # For actions
+        # Forward pass through the network
         x = torch.tanh(self.l1(s))
         z = torch.tanh(self.l2(x))
-        y = torch.tanh(self.l3(z))
+        w = torch.tanh(self.l3(z))
+        y = torch.tanh(self.l4(w))
         logits = self.actor(y)
         state_value = self.critic(y)
         return logits, state_value
