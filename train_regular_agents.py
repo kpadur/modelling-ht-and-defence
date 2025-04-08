@@ -227,7 +227,7 @@ regular_agent_reward_loss_df = pd.DataFrame({'total_rewards': total_rewards,
                                              'mean_loss1': loss1_history, 
                                              'mean_loss2': loss2_history})
 # Save dataframes to csv
-regular_agent_reward_loss_df.to_csv(os.path.join(output_dir, f'ch{chapter}-exp{experiment}-{date}-{seed}-regagents-data.csv'), index = False)
+regular_agent_reward_loss_df.to_csv(os.path.join(save_path, f'ch{chapter}-exp{experiment}-{date}-{seed}-regagents-data.csv'), index = False)
 
 # %% [markdown]
 # Save models
