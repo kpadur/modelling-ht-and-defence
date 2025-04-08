@@ -1,14 +1,16 @@
-# Chapter 3
-# Experiment 2
-
+# Exp 2 data analysis and visualisation
 # Load libraries
 library(readr)
-library(zoo)
 library(ggplot2)
+library(zoo)
+library(dplyr)
+library(tidyr)
 
-
+#####
+# Attacker rewards: Analyse the effectiveness of attackers' performance
+#####
 # Import data
-path <- "/results/exp2-results/"
+path <- "exp2-results/"
 all_files <- list.files(path, pattern = "*attacker-data.csv", full.names = TRUE)
 
 # Calculate metrics
@@ -16,7 +18,7 @@ stabilised_episode = 11148
 number_of_episodes = 20000
 stabilised_period = number_of_episodes-stabilised_episode
 
-# Calculate cumulative reward over stabilised episodes
+# Rewards: Cumulative reward over stabilised episodes
 extract_stabilised_rw_values <- function(file) {
   data <- read_csv(file, show_col_types = FALSE)
   rw_values <- tail(data$total_rewards, stabilised_period)
@@ -164,35 +166,35 @@ summary_term_rewards_data <- data.frame(
 
 # Visualise rewards
 a1 <- ggplot() +
-  geom_line(data = summary_total_rewards_data, aes(x = episode, y = mean, color = "Average cumulative reward")) +
+  geom_line(data = summary_total_rewards_data, aes(x = episode, y = mean, color = "Rewards score")) +
   geom_ribbon(data = summary_total_rewards_data, aes(x = episode, ymin = mean - sd, ymax = mean + sd), 
-              fill = "#FF99CC", alpha = 0.3) +
+              fill = "#FF99CC", alpha = 0.2) +
   
-  geom_line(data = summary_recon_rewards_data, aes(x = episode, y = mean, color = "Average cumulative reward for reconnaissance")) +
+  geom_line(data = summary_recon_rewards_data, aes(x = episode, y = mean, color = "Rewards for reconnaissance")) +
   geom_ribbon(data = summary_recon_rewards_data, aes(x = episode, ymin = mean - sd, ymax = mean + sd),
-              fill = "#99CCFF", alpha = 0.3) +
+              fill = "#99CCFF", alpha = 0.2) +
   
-  geom_line(data = summary_cyber_rewards_data, aes(x = episode, y = mean, color = "Average cumulative reward for a cyberattack")) +
+  geom_line(data = summary_cyber_rewards_data, aes(x = episode, y = mean, color = "Rewards for a cyberattack")) +
   geom_ribbon(data = summary_cyber_rewards_data, aes(x = episode, ymin = mean - sd, ymax = mean + sd),
-              fill = "#FFCC66", alpha = 0.3) +
+              fill = "#FFCC66", alpha = 0.2) +
   
-  geom_line(data = summary_disinfo_rewards_data, aes(x = episode, y = mean, color = "Average cumulative reward for disinformation")) +
+  geom_line(data = summary_disinfo_rewards_data, aes(x = episode, y = mean, color = "Rewards for disinformation")) +
   geom_ribbon(data = summary_disinfo_rewards_data, aes(x = episode, ymin = mean - sd, ymax = mean + sd),
-              fill = "#CCFFCC", alpha = 0.3) +
+              fill = "#CCFFCC", alpha = 0.2) +
   
-  geom_line(data = summary_term_rewards_data, aes(x = episode, y = mean, color = "Average cumulative reward for termination")) +
+  geom_line(data = summary_term_rewards_data, aes(x = episode, y = mean, color = "Rewards for termination")) +
   geom_ribbon(data = summary_term_rewards_data, aes(x = episode, ymin = mean - sd, ymax = mean + sd),
-              fill = "#CCCCCC", alpha = 0.3) +
+              fill = "#CCCCCC", alpha = 0.2) +
   
-  scale_color_manual(values = c("Average cumulative reward" = "#CC0033", 
-                                "Average cumulative reward for reconnaissance" = "#0033CC",
-                                "Average cumulative reward for a cyberattack" = "#FF9900",
-                                "Average cumulative reward for disinformation" = "#006633",
-                                "Average cumulative reward for termination" = "#666666")) +
-  labs(x = "Episode", y = "Average cumulative reward for attackers\n(across 50 simulations)", color = NULL) +
+  scale_color_manual(values = c("Rewards score" = "#CC0033", 
+                                "Rewards for reconnaissance" = "#0033CC",
+                                "Rewards for a cyberattack" = "#FF9900",
+                                "Rewards for disinformation" = "#006633",
+                                "Rewards for termination" = "#666666")) +
+  labs(x = "Episode", y = "Average cumulative reward\nfor attackers\n(across 100 simulations)", color = NULL) +
   theme_bw() +
   theme(
-    legend.position = c(0.25, 0.85),
+    legend.position = c(0.20, 0.70),
     plot.title = element_text(size = rel(1)),
     axis.title = element_text(size = rel(1)),
     axis.text = element_text(size = rel(1)),
@@ -203,10 +205,7 @@ a1 <- ggplot() +
     axis.title.y = element_text(vjust = 1),
     legend.background = element_blank(),
     legend.key = element_blank(),
-    panel.grid.major = element_line(color = "grey", linewidth = 0.5), 
+    panel.grid.major = element_line(color = "grey", linewidth = 0.6), 
     panel.grid.minor = element_line(color = "lightgrey", linewidth = 0.5)
   )
 a1
-
-# Saved /ch3-model/results/plots/ch3-exp3-attacker-rewards.pdf as 5 x 7.50 (landscape) 
-# NOTE: Thesis uses a combined figure of attacker and defender rewards
