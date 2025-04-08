@@ -8,7 +8,7 @@
 from environment_exp1 import Environment
 from a2c_agent import A2CRegAgent
 from data_analysis import process_regagent_rewards
-from save_data import read_csv_to_dict, save_data_to_csv
+from save_data import read_csv_to_dict
 import numpy as np
 import pandas as pd
 import torch
@@ -20,7 +20,7 @@ import datetime
 
 # %% [markdown]
 # Setup device, date, chapter, and experiment
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') # should be cpu
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') # cpu
 date = datetime.datetime.now().strftime("%Y-%m-%d")
 chapter = 3
 experiment = 1
@@ -100,8 +100,8 @@ regagent_example = np.random.choice(regagents)
 # Define regular agents' state space, actions, and opinions
 observation_space, action_space = env.observation_spaces[f"regagent{regagent_example}"], env.action_spaces[f"regagent{regagent_example}"]
 
-state_shape, n_actions, n_opinions = \
-    env.observation_spaces[f"regagent{regagent_example}"].shape[0], env.action_spaces[f"regagent{regagent_example}"][0].n, env.action_spaces[f"regagent{regagent_example}"][1].n
+state_shape, n_actions, n_opinions = env.observation_spaces[f"regagent{regagent_example}"].shape[0], \
+    env.action_spaces[f"regagent{regagent_example}"][0].n, env.action_spaces[f"regagent{regagent_example}"][1].n
 
 # Reset environment state
 envstate, info = env.reset(seed=seed)
@@ -111,9 +111,6 @@ print("Regular agents' state shape is", state_shape, ", number of actions is", n
 # Visualise graph
 fig = env.render(graph_type='actions')
 plt.show()
-if save_fig:
-    fig.savefig(os.path.join(save_path, f'ch{chapter}-exp{experiment}-{date}-{seed}-environment.png'))
-    plt.clf()
 
 # %% [markdown]
 # Create regular agents
@@ -121,7 +118,8 @@ regular_agents = {f"regagent{agent}": A2CRegAgent(state_shape, n_actions, n_opin
                   for agent in env.regagents}
 # %% [markdown]
 # Collect data
-total_rewards, action_rewards, opinion_rewards = np.zeros(number_of_episodes + 1),  np.zeros(number_of_episodes + 1), np.zeros(number_of_episodes + 1)
+total_rewards = np.zeros(number_of_episodes + 1)
+action_rewards, opinion_rewards = np.zeros(number_of_episodes + 1), np.zeros(number_of_episodes + 1)
 
 loss1_agents, loss2_agents = np.zeros((number_of_episodes + 1, len(env.regagents))), np.zeros((number_of_episodes + 1, len(env.regagents)))
 loss1_history, loss2_history = np.zeros(number_of_episodes + 1), np.zeros(number_of_episodes + 1)
@@ -223,21 +221,26 @@ for episode in range(1, number_of_episodes + 1):
 
 # %% [markdown]
 # Save data
-regular_agent_reward_loss_df = pd.DataFrame({'total_rewards': total_rewards, 'action_rewards': action_rewards, 'opinion_rewards': opinion_rewards,
-                             'mean_loss1': loss1_history, 'mean_loss2': loss2_history})
+regular_agent_reward_loss_df = pd.DataFrame({'total_rewards': total_rewards, 
+                                             'action_rewards': action_rewards, 
+                                             'opinion_rewards': opinion_rewards,
+                                             'mean_loss1': loss1_history, 
+                                             'mean_loss2': loss2_history})
 # Save dataframes to csv
 regular_agent_reward_loss_df.to_csv(os.path.join(output_dir, f'ch{chapter}-exp{experiment}-{date}-{seed}-regagents-data.csv'), index = False)
 
 # %% [markdown]
 # Save models
 if save_nns:
+    os.makedirs(nn_path, exist_ok=True)  # Ensure the folder exists
+
     for agent_name, agent in regular_agents.items():
         torch.save({
             'actions_state_dict': agent.action_nn.state_dict(),
             'actions_opt_state_dict': agent.action_opt.state_dict(),
-        }, f'{agent_name}_checkpoint_actions.pth')
+        }, os.path.join(nn_path, f'{agent_name}_checkpoint_actions.pth'))
 
         torch.save({
             'opinions_state_dict': agent.opinion_nn.state_dict(),
             'opinions_opt_state_dict': agent.opinion_opt.state_dict(),
-        }, f'{agent_name}_checkpoint_opinions.pth')
+        }, os.path.join(nn_path, f'{agent_name}_checkpoint_opinions.pth'))
