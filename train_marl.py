@@ -132,9 +132,6 @@ envstate, info = env.reset(seed=seed)
 # Visualise graph
 fig = env.render(graph_type='opinions')
 plt.show()
-if save_fig:
-    fig.savefig(os.path.join(save_path, f'ch{chapter}-exp{experiment}-env-vis.png'))
-    plt.clf()
 
 print("Regular agents' state shape is", state_shape, ", number of actions is", n_actions, " and number of opinions is", n_opinions)
 print("Defenders' state shape is", state_shape_defenders, ", number of filter actions is", n_filter, " and number of answer actions is", n_answer)
@@ -243,9 +240,6 @@ for episode in range(1, number_of_episodes + 1):
             fig.text(0.01, 0.90, f'Episode: {episode}', ha='left', fontsize=14, color='black')
             fig.text(0.01, 0.86, f'Timestep: {timestep}', ha='left', fontsize=14, color='black')
             plt.show()
-            if save_fig:
-                fig.savefig(os.path.join(save_path, f'ch{chapter}-exp{experiment}-{date}-{seed}-{episode}-{timestep}-environment.png'))
-                plt.clf()
 
         # Service providers service availability        
         for agent_name, agent in regular_agents.items():
