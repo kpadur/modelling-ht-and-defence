@@ -1,19 +1,18 @@
-# Chapter 3
-# Experiment 1
+# Exp 1 data analysis and visualisation
 # Load libraries
 library(readr)
 library(ggplot2)
 
-# Read all files and combine
-path <- "/results/exp1-results/"
+# Exp1
+path <- "exp1-results"
 all_files <- list.files(path, pattern = "*regagents-data.csv", full.names = TRUE)
 
-# Calculate metrics (from hyperparameters file)
+# Calculate metrics (Exp1)
 stabilised_episode = 145
 number_of_episodes = 500
 stabilised_period = number_of_episodes-stabilised_episode
 
-# Calculate cumulative reward over stabilised episodes
+# Average cumulative reward over stabilised episodes
 extract_stabilised_rw_values <- function(file) {
   data <- read_csv(file, show_col_types = FALSE)
   rw_values <- tail(data$total_rewards, stabilised_period)
@@ -22,15 +21,14 @@ extract_stabilised_rw_values <- function(file) {
 rw_values <- sapply(all_files, extract_stabilised_rw_values)
 rw_result <- list(
   mean = mean(rw_values),
-  sd = sd(rw_values), # Convergence
+  sd = sd(rw_values),
   min = min(rw_values),
   max = max(rw_values)
 )
-
 print(rw_result)
 
-# Visualise rewards
-# Read 'total rewards' column from each file and combine
+# Visualise of rewards
+# Get 'total rewards'
 total_reward_data <- lapply(all_files, function(file) {
   df <- read_csv(file,show_col_types = FALSE)
   return(df$total_rewards)
@@ -48,7 +46,7 @@ summary_total_rewards_data <- data.frame(
   variance = episode_variance_total_rewards
 )
 
-# Read 'action rewards' column from each file and combine
+# Get 'action rewards'
 action_reward_data <- lapply(all_files, function(file) {
   df <- read_csv(file,show_col_types = FALSE)
   return(df$action_rewards)
@@ -66,7 +64,7 @@ summary_action_rewards_data <- data.frame(
   variance = episode_variance_action_rewards
 )
 
-# Read 'opinion rewards' column from each file and combine
+# Get 'opinion rewards'
 opinion_reward_data <- lapply(all_files, function(file) {
   df <- read_csv(file,show_col_types = FALSE)
   return(df$opinion_rewards)
@@ -101,10 +99,14 @@ p1 <- ggplot() +
   scale_color_manual(values = c("Average cumulative reward" = "#CC0033", 
                                 "Average cumulative reward for actions" = "#FF9900", 
                                 "Average cumulative reward for opinions" = "#006633")) +
-  labs(x = "Episode", y = "Average cumulative reward\n(across 50 simulations)", color = NULL) +
+  labs(x = "Episode", y = "Average cumulative reward\n(across 100 simulations)", color = NULL) +
+  scale_x_continuous(limits = c(0, 500)) +
+  scale_y_continuous(limits = c(0, 150000),
+                     breaks = c(0, 50000, 100000, 150000),
+                     labels = c("0", "50000", "100000", "150000")) +
   theme_bw() +
   theme(
-    legend.position = c(0.70, 0.75),
+    legend.position = c(0.70, 0.65),
     plot.title = element_text(size = rel(1)),
     axis.title = element_text(size = rel(1)),
     axis.text = element_text(size = rel(1)),
@@ -116,8 +118,6 @@ p1 <- ggplot() +
     legend.background = element_blank(),
     legend.key = element_blank(),
     panel.grid.major = element_line(color = "grey", linewidth = 0.5), 
-    panel.grid.minor = element_line(color = "lightgrey", linewidth = 0.5) 
+    panel.grid.minor = element_line(color = "lightgrey", linewidth = 0.5)
   )
 p1
-
-# Saved /ch3-model/results/plots/ch3-exp1-rewards.pdf as 5 x 7.50 (landscape)
