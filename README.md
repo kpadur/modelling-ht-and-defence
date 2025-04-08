@@ -1,6 +1,6 @@
 # Code for "Modelling hybrid threats and defensive countermeasures"
 ## Introduction
-Hybrid attacks are a growing concern due to their potential to undermine public trust and disrupt social stability. Modelling attacker and defender behaviours is necessary to identify potential attack strategies and determine effective countermeasures. Traditional game-theoretic methods, commonly used for this purpose, can struggle to capture the complexity and dynamic nature of these types of emerging threats. To address this research gap, we explore the use of MARL. In our case, the attacker aims to devise an attack strategy of cyberattacks and disinformation campaigns that maximises the potential harm to their target while minimising the use of their resources. The defender seeks to develop effective defence strategies against potential multi-domain attacks. We then can use RL algorithms to derive policies for both agents. As both agents are learning and adapting their strategies in response to each other, we propose a novel MARL approach that extends a single-agent RL approach to this competitive multi-agent setting. To evaluate the feasibility and effectiveness of our approach, we introduce both agents into a simulated environment, a digital twin representing a simple Cyber-Physical-Social System.
+Hybrid threats are a growing concern due to their potential to undermine public trust and disrupt social stability. Few public examples exist, but the risks of a successful attack are high, so modelling attacker and defender behaviours is necessary to identify potential attack strategies and determine effective countermeasures. Traditional game-theoretic methods, commonly used for this purpose, can struggle to capture the complexity and dynamic nature of these types of emerging threats. To address this problem, we propose a novel approach in which both attackers and defenders use RL to devise strategies against their opponents.
 ## Project structure
 ```
 modelling-ht-and-defence/
@@ -13,9 +13,10 @@ modelling-ht-and-defence/
 ├── a2c_mal_agent.py                 # Attackers' behaviour in the environment
 ├── nns.py                           # Architecture of deep neural networks
 ├── data_analysis.py                 # Functions to analyse training data
-├── other_functions.py               # Functions to visualise training results
-├── hyperparameters.csv              # (Tuned) hyperparameter values
-├── parameters.csv                   # Parameter values
+├── save_data.py                     # Functions to save data
+├── parameters                       # Folder containing data and R scripts for hyperparameter tuning
+    ├── hyperparameters.csv          # (Tuned) hyperparameter values
+    └── parameters.csv               # Parameter values
 ├── regagent-parameters              # Folder containing trained regular agents neural networks
 ├── results                          # Folder containing R scripts for data analysis and visualisation
     ├── exp1-results                 # Data collected from experiment 1
