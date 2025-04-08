@@ -5,41 +5,42 @@ import torch
 import random
 from pettingzoo import AECEnv
 import matplotlib.pyplot as plt
+from matplotlib.colors import to_rgba
+from matplotlib import colormaps
 
 class Environment(AECEnv):
     """
     This environment represents a cyber-physical-social system (CPSS).
     """
     
-    def __init__(self, nRegAgents, nMalAgents, nProviders,
+    def __init__(self, nRegAgents, nProviders,
                 kappa, rho, center_up_to_down, center_down_to_up, end_up_to_down, end_down_to_up, cost,
-                direct_exp_weight, trust_threshold, forgetting_factor):
+                direct_exp_weight, feedback_adj_rate, forgetting_factor):
         """
         The init method takes in environment arguments and creates the environment.
 
         Attributes are not changed after initialisation.
         """
-        self.cost = cost
-        self.end_down_to_up = end_down_to_up
-        self.end_up_to_down = end_up_to_down
-        self.center_down_to_up = center_down_to_up
-        self.center_up_to_down = center_up_to_down
-        self.nProviders = nProviders
-        self.rho = rho
-        self.kappa = kappa
-        self.direct_exp_weight = direct_exp_weight
-        self.trust_threshold = trust_threshold
-        self.forgetting_factor = forgetting_factor
-        self.nMalAgents = nMalAgents
         self.nRegAgents = nRegAgents
-        self.nAgents = nRegAgents + nMalAgents
+        self.nAgents = nRegAgents
+        self.nProviders = nProviders
+        self.kappa = kappa
+        self.rho = rho
+        self.center_up_to_down = center_up_to_down
+        self.center_down_to_up = center_down_to_up
+        self.end_up_to_down = end_up_to_down
+        self.end_down_to_up = end_down_to_up
+        self.cost = cost
+        self.direct_exp_weight = direct_exp_weight
+        self.feedback_adj_rate = feedback_adj_rate
+        self.forgetting_factor = forgetting_factor
 
         # Create social network as a graph (G = (V, E)) and neighbours dictionary
-        self.social_network, self.neighbours = nx.Graph(), {}
+        self.social_network = nx.Graph()
         self._form_social_network()
 
         # Create lists of agent ids (integers)
-        self.sn_agents, self.regagents, self.malagents, self.providers = [], [], [], []
+        self.sn_agents, self.regagents, self.providers = [], [], []
         self._create_agents()
 
         # Generate separate lists with agent names
@@ -47,12 +48,12 @@ class Environment(AECEnv):
         self.possible_agents = self.agents.copy() # all agents that may appear in the environment
 
         # Initialise regular agents information
-        self.opinions_dict, self.opinion_pairs, self.positive_opinions, self.negative_opinions = {}, {}, [], []
+        self.opinions_dict, self.opinion_pairs, self.positive_opinions = {}, {}, []
         self._create_regular_agents_info()
 
         # Observation and action spaces for regular agents  
         self.observation_spaces = {**{f"regagent{ragent}": Box(low=0.0, high=1.0, shape=(self.nProviders,), dtype=np.float32) for ragent in self.regagents}} # trust values
-        self.action_spaces = {**{f"regagent{ragent}": Tuple((Discrete(self.nProviders), Discrete(self.nProviders*2))) for ragent in self.regagents}} # service providers, opinion
+        self.action_spaces = {**{f"regagent{ragent}": Tuple((Discrete(self.nProviders), Discrete(self.nProviders*2))) for ragent in self.regagents}} # service providers, opinions
 
     def reset(self, seed=None, options=None):
         """
@@ -75,14 +76,14 @@ class Environment(AECEnv):
         self.agents = self.possible_agents.copy()
 
         # Reset regular agents' information
-        self.actions_taken = {**{f"regagent{ragent}": None for ragent in self.regagents}} # no actions taken yet
+        self.action_taken = {**{f"regagent{ragent}": None for ragent in self.regagents}} # no actions taken yet
         self.opinion_expressed = {**{f"regagent{ragent}": None for ragent in self.regagents}} # no actions taken yet
         self.service_received = {**{f"regagent{ragent}": [[] for _ in range(self.nProviders)] for ragent in self.regagents}} # no service received yet
         self.feedback_received = {**{f"regagent{ragent}": [[] for _ in range(self.nProviders*2)] for ragent in self.regagents}} # no feedback values yet
 
         # Reset agents' observations
         # NOTE: (Assumption) regular agents have no previous information about providers (0.5 trust values)
-        self.observations = {**{f"regagent{ragent}": [0.5] * self.nProviders for ragent in self.regagents}} # changed scale to be between 0 and 1
+        self.observations = {**{f"regagent{ragent}": [0.5] * self.nProviders for ragent in self.regagents}}
 
         # Get dummy infos. Necessary for proper environment testing
         self.terminations = {a: False for a in self.agents}
@@ -93,22 +94,27 @@ class Environment(AECEnv):
     def step(self, actions):
         """
         Receives a dictionary of actions keyed by the agent name. 
-        Returns the observation dictionary, reward dictionary, terminated dictionary, 
-        truncated dictionary and info dictionary, where each dictionary is keyed by the agent.
+        Returns observations, rewards, terminations, truncations, 
+        and infos dictionaries keyed by the agent name.
         """
         # Create (new) agent pairs for information spreading
         self.pairs = self._create_pairs_from_graph()
 
+        # Calculate average situational trust
+        self.average_situational_trust = self._calculate_average_situational_trust()
+
         # Give rewards to agents
-        rewards = {**{f"regagent{agent}": (self._calculate_service_reward(f"regagent{agent}", actions), self._calculate_feedback_reward(f"regagent{agent}", actions)) 
+        rewards = {**{f"regagent{agent}": (self._calculate_service_reward(f"regagent{agent}", actions), 
+                                           self._calculate_feedback_reward(f"regagent{agent}", actions)) 
                 for agent in self.regagents}}
 
+        # Update observations for agents
+        self.observations = {**{f"regagent{agent}": self._calculate_situational_trust(self.service_received[f"regagent{agent}"], 
+                                                                                      self.feedback_received[f"regagent{agent}"]) 
+               for agent in self.regagents}}
+        
         # Update cps state (center, endpoint)
         self._update_cps_state()
-
-        # Update observations for agents
-        self.observations = {**{f"regagent{agent}": self._calculate_situational_trust(self.service_received[f"regagent{agent}"], self.feedback_received[f"regagent{agent}"]) 
-               for agent in self.regagents}}
         
         # Update timestep
         self.timestep += 1
@@ -134,60 +140,59 @@ class Environment(AECEnv):
             fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
         else:
             fig, ax = plt.subplots(1, 1, figsize=(8, 8))
-        
-        # Create a new graph for visualization purposes
+
+        # Create service provider (action) color mapping
+        action_colormap = plt.cm.get_cmap(colormaps['tab10'], len(self.providers)) 
+        # Create a new graph for visualisation purposes
         combined_graph = nx.Graph(self.social_network)  # Copy the original social network
 
         # Define colors for the original nodes
-        node_colors_actions = {}
-        node_colors_opinions = {}
-        for node in self.social_network.nodes:
-            if node in self.regagents:
-                node_colors_actions[node] = 'gold'  # Colour for regular agents
-                node_colors_opinions[node] = 'gold'  # Same color initially for opinions
-            else:
-                node_colors_actions[node] = 'red'  # Colour of malicious agents
-                node_colors_opinions[node] = 'red'  # Same for opinions
+        node_colors_actions = {node: 'gold' if node in self.regagents else 'red' for node in self.social_network.nodes}
+        node_colors_opinions = node_colors_actions.copy()
+        # Adding n new separate nodes (representing service providers) with no connections
+        extra_nodes = [f'd_{provider}' for provider in self.providers]
 
-        # Adding 3 new separate nodes with no connections
-        extra_nodes = ['$d_1$', '$d_2$', '$d_3$']
-        extra_colors = {'$d_1$': 'tab:blue', '$d_2$': 'tab:orange', '$d_3$': 'tab:green'}
-        for extra_node in extra_nodes:
-            combined_graph.add_node(extra_node)
-            node_colors_actions[extra_node] = extra_colors[extra_node]
-            node_colors_opinions[extra_node] = extra_colors[extra_node]
-
-        # Manually position the extra nodes
+        # Manually position the extra nodes using a circular layout
         pos = nx.spring_layout(self.social_network, k=0.5, seed=42)
-        pos['$d_1$'] = [0.5, 0.9]
-        pos['$d_2$'] = [-0.9, -0.9]
-        pos['$d_3$'] = [0.9, -0.9]
+        angle_increment = 1.75 * np.pi / len(extra_nodes)
+        radius = 1.25  # Distance from the center of the plot
 
+        for i, node in enumerate(extra_nodes):
+            angle = i * angle_increment
+            pos[node] = [radius * np.cos(angle), radius * np.sin(angle)]
+
+        # Add extra nodes to the graph and assign colors
+        for i, node in enumerate(extra_nodes):
+            combined_graph.add_node(node)
+            color = action_colormap(i)  # Use 'tab10' color directly
+            node_colors_actions[node] = color
+            node_colors_opinions[node] = color  # Ensure opinions have the same colors
+
+        action_opinion_colors = {}
+        # Assign colors for actions and lighten for negative opinions
+        for action in range(self.nProviders):
+            action_color = to_rgba(action_colormap(action))
+            # Lighten the action color for negative opinion
+            lightened_color = tuple((1 - 0.5) * c + 0.5 for c in action_color[:3]) + (action_color[3],)
+            action_opinion_colors[action] = {
+                'positive': action_color,
+                'negative': lightened_color
+            }
+        
+        # Render during simulation
         if self.timestep > 1:
             for agent in self.regagents:
                 agent_name = f"regagent{agent}"
-                action = self.actions_taken[agent_name]
-                if action == 0:
-                    node_colors_actions[agent] = 'tab:blue'
-                elif action == 1:
-                    node_colors_actions[agent] = 'tab:orange'
-                else:
-                    node_colors_actions[agent] = 'tab:green'
+                action = self.action_taken.get(agent_name)
+                opinion = self.opinion_expressed.get(agent_name)
 
-                # Opinions
-                opinion = self.opinion_expressed[agent_name]
-                if opinion == 0:
-                    node_colors_opinions[agent] = 'powderblue'
-                elif opinion == 1:
-                    node_colors_opinions[agent] = 'tab:blue'
-                elif opinion == 2:
-                    node_colors_opinions[agent] = 'peachpuff'
-                elif opinion == 3:
-                    node_colors_opinions[agent] = 'tab:orange'
-                elif opinion == 4:
-                    node_colors_opinions[agent] = 'lightgreen'
-                elif opinion == 5:
-                    node_colors_opinions[agent] = 'tab:green'
+                if action is not None and opinion is not None:
+                    node_colors_actions[agent] = action_opinion_colors[action]['positive']
+
+                    if opinion in self.positive_opinions:
+                        node_colors_opinions[agent] = action_opinion_colors[action]['positive']
+                    else:
+                        node_colors_opinions[agent] = action_opinion_colors[action]['negative']
 
         # Plot for actions if requested
         if graph_type in ['both', 'actions']:
@@ -196,7 +201,8 @@ class Environment(AECEnv):
             edge_styles = [combined_graph[u][v].get('style', 'solid') for u, v in combined_graph.edges]
 
             nx.draw_networkx_edges(combined_graph, pos=pos, edgelist=combined_graph.edges, edge_color=edge_colors, style=edge_styles, alpha=0.6, ax=ax)
-            nx.draw_networkx_nodes(combined_graph, pos=pos, node_color=[node_colors_actions.get(node, 'mediumvioletred') for node in combined_graph.nodes], node_size=[300 if node in self.social_network.nodes else 2000 for node in combined_graph.nodes], ax=ax)
+            nx.draw_networkx_nodes(combined_graph, pos=pos, node_color=[node_colors_actions.get(node, 'mediumvioletred') for node in combined_graph.nodes], \
+                                   node_size=[300 if node in self.social_network.nodes else 2000 for node in combined_graph.nodes], ax=ax)
             ax.text(0, 1, "A", transform=ax.transAxes, fontsize=20, verticalalignment='top')
             ax.axis('off')
 
@@ -207,13 +213,14 @@ class Environment(AECEnv):
             edge_styles = [combined_graph[u][v].get('style', 'solid') for u, v in combined_graph.edges]
 
             nx.draw_networkx_edges(combined_graph, pos=pos, edgelist=combined_graph.edges, edge_color=edge_colors, style=edge_styles, alpha=0.6, ax=ax)
-            nx.draw_networkx_nodes(combined_graph, pos=pos, node_color=[node_colors_opinions.get(node, 'mediumvioletred') for node in combined_graph.nodes], node_size=[300 if node in self.social_network.nodes else 2000 for node in combined_graph.nodes], ax=ax)
+            nx.draw_networkx_nodes(combined_graph, pos=pos, node_color=[node_colors_opinions.get(node, 'mediumvioletred') for node in combined_graph.nodes], \
+                                   node_size=[300 if node in self.social_network.nodes else 2000 for node in combined_graph.nodes], ax=ax)
             ax.text(0, 1, "B", transform=ax.transAxes, fontsize=20, verticalalignment='top')
             ax.axis('off')
 
         plt.tight_layout()
         return fig  # Return the figure without showing it
-    
+
     @property
     def num_agents(self) -> int: # length of the agent list
         return len(self.agents)
@@ -230,8 +237,6 @@ class Environment(AECEnv):
         self.graph = nx.watts_strogatz_graph(self.nAgents, self.kappa, self.rho)
         self.social_network.add_nodes_from(self.graph)
         self.social_network.add_edges_from(self.graph.edges)
-        # Create neighbours dictionary
-        self.neighbours = nx.to_dict_of_lists(self.social_network) 
 
     def _create_agents(self):
         """
@@ -240,8 +245,8 @@ class Environment(AECEnv):
         # Create list of all agents
         self.sn_agents = [agent for agent in range(self.nAgents)]
         
-        # Specify list of regular agents from all remaining agents
-        self.regagents = [regagent for regagent in self.sn_agents if regagent not in self.malagents]
+        # Specify list of regular agents
+        self.regagents = self.sn_agents.copy()
 
         # Create list of service providers
         self.providers = [provider for provider in range(self.nProviders)]
@@ -249,8 +254,7 @@ class Environment(AECEnv):
     def _create_regular_agents_info(self):
         """
         Create opinions dictionery, e.g., {0:[-1,0], 1:[1,0], 2:[-1,1], 3:[1,1], 4:[-1,2], 5:[1,2]},
-        opinion pairs, e.g., {0:1, 1:0, 2:3, 3:2, 4:5, 5:4}, positiove opinions, e.g., [1,3,5],
-        and negative opinions, e.g.,  [0,2,4].
+        opinion pairs, e.g., {0:1, 1:0, 2:3, 3:2, 4:5, 5:4}, and positiove opinions, e.g., [1,3,5]
         """
         # Opinions dictionary
         for i in range(self.nProviders*2):
@@ -263,9 +267,6 @@ class Environment(AECEnv):
         # Generate list of positive opinions
         for k, v in self.opinions_dict.items():
             if v[0] == 1: self.positive_opinions.append(k)
-        # Generate list of negative opinions
-        for k, v in self.opinions_dict.items():
-            if v[0] == -1: self.negative_opinions.append(k)
 
     def _create_pairs_from_graph(self):
         """
@@ -314,7 +315,7 @@ class Environment(AECEnv):
         """
         for provider in self.providers:
             provider_name = f"defagent{provider}"
-            # Determine provider's central transition matrix (from -1 to -1, from -1 to 1, from 1 to -1, from 1 to 1)
+            # Determine provider's central transition matrix (from 0 to 0, from 0 to 1, from 1 to 0, from 1 to 1)
             center_matrix = [[1 - self.center_down_to_up[provider], self.center_down_to_up[provider]],\
                              [self.center_up_to_down[provider], 1 - self.center_up_to_down[provider]]]
 
@@ -325,7 +326,7 @@ class Environment(AECEnv):
 
         for provider in self.providers:
             provider_name = f"defagent{provider}"
-            # Determine provider's endpoint transition matrix (from -1 to -1, from -1 to 1, from 1 to -1, from 1 to 1)
+            # Determine provider's endpoint transition matrix (from 0 to 0, from 0 to 1, from 1 to 0, from 1 to 1)
             end_matrix = [[1 - self.end_down_to_up[provider], self.end_down_to_up[provider]],\
                           [self.end_up_to_down[provider], 1 - self.end_up_to_down[provider]]]
 
@@ -356,58 +357,58 @@ class Environment(AECEnv):
         else:
             service_reward = -1
 
-        # Determine cost associated with the action, 
-        if self.actions_taken[agent_name] is None: # agent has not taken any actions yet
+        # Determine cost associated with the action
+        if self.action_taken[agent_name] is None: # agent has not taken any actions yet
             reward = service_reward
-        elif self.actions_taken[agent_name] == provider: # agent stayed with save providers
+        elif self.action_taken[agent_name] == provider: # agent stayed with the same provider
             reward = service_reward + self.cost[provider]
         else: # agent changed provider
             reward = service_reward - self.cost[provider]
 
         # Change action to the most recent action
-        self.actions_taken[agent_name] = provider
+        self.action_taken[agent_name] = provider
 
         # Save requested service state and time step for this agent
         self.service_received[agent_name][provider].append((self.timestep, service_reward))
-        return reward
-    
+        return float(reward)
+
     def _calculate_feedback_reward(self, agent_name, actions):
         """
         Calculates reward for regular agent based on feedback from neighbour
         return:     float
         """
         # Determine interacting agents
-        agent = int(agent_name.replace("regagent", "")) # agent id
-        neighbour = self._get_interaction(agent) # neighbour id
-        # Determine agents' opinions
-        opinion = actions[agent_name][1] # agent's opinion
-        # Save currently expressed opinion
-        self.opinion_expressed[agent_name] = opinion
-        agent_opinion_value = self.opinions_dict[opinion][0] # opinion value (-1 or 1)
-        agent_opinion_sp = self.opinions_dict[opinion][1] # service provider id (0,1,2)
+        agent = int(agent_name.replace("regagent", ""))  # agent ID
+        neighbour = self._get_interaction(agent)  # neighbour ID
+        opinion = actions[agent_name][1]  # Agent's (expressed) opinion
 
-        # Determine feedback from neighbour
-        if neighbour == -1: # agent has no contact this time step
-            neighbour_opinion_value = 0
+        # Identify the service provider associated with the expressed opinion
+        agent_opinion_value = self.opinions_dict[opinion][0]  # Opinion value (-1 or 1)
+        agent_opinion_sp = self.opinions_dict[opinion][1]  # Service provider ID
+        self.opinion_expressed[agent_name] = opinion  # Save opinion for tracking
+
+        # Determine feedback from the neighbour
+        if neighbour == -1:  # Agent has no contact this timestep
+            feedback = 0
         else:
             neighbour_name = f"regagent{neighbour}"
-            # Compare neighbour's situational trust with threshold value
-            # NOTE: (Assumption) neighbour expresses their opinion which they develop by 
-            # comparting threshold = 0.5 to their situational trust in sp
-            if self.observations[neighbour_name][agent_opinion_sp] > self.trust_threshold:
-                neighbour_opinion_value = 1 # positive opinion
-            elif self.observations[neighbour_name][agent_opinion_sp] < self.trust_threshold:
-                neighbour_opinion_value = -1 # negative opinion
+            neighbour_trust = self.observations[neighbour_name][agent_opinion_sp]  # neighbour's trust for this provider
+            # Determine feedback based on dynamic trust threshold
+            if neighbour_trust >= self.average_situational_trust[agent_opinion_sp]:
+                feedback = 1 * agent_opinion_value # neighbour has pos opinion
             else:
-                neighbour_opinion_value = 0 # no opinion
+                feedback = -1 * agent_opinion_value # neighbour has neg opinion
+        
+        # Give additional support for opinion that agent itself has strong direct experience with
+        if actions[agent_name][0] == agent_opinion_sp:
+            support = feedback + self.feedback_adj_rate
+        else:
+            support = feedback - self.feedback_adj_rate
 
-        # Calculate feedback reward
-        feedback = agent_opinion_value * neighbour_opinion_value
-
-        # Save neighbour's feedback value at current time step
+        # Save feedback received
         if feedback != 0:
             self.feedback_received[agent_name][opinion].append((self.timestep, feedback))
-        return float(feedback)
+        return float(support)
     
     def _calculate_situational_trust(self, service_states, feedback_values):
         """
@@ -424,6 +425,7 @@ class Environment(AECEnv):
 
         for provider in range(self.nProviders):
             service_states[provider].sort(key=lambda x: x[0]) # should be sorted already
+
             # Separate positive experiences from negative experiences
             for i, reward in service_states[provider]:
                 if reward > 0:
@@ -431,15 +433,16 @@ class Environment(AECEnv):
                 else:
                     neg_exps[provider] += 1 * self.forgetting_factor**(current_time-i)
         # Calculate direct experience score for all service providers
-        direct_exp_score = (pos_exps + 1)/(pos_exps + neg_exps + 2) # tau = (r+1)/(r+s+2)
+        direct_exp_score = (pos_exps + 1)/(pos_exps + neg_exps + 2)
 
         # Analyse witness information
-        pos_wit = np.zeros(self.nProviders, dtype = float) #r
-        neg_wit = np.zeros(self.nProviders, dtype = float) #s
+        pos_wit = np.zeros(self.nProviders, dtype = float)
+        neg_wit = np.zeros(self.nProviders, dtype = float)
 
         for opinion in self.positive_opinions:
             alt_opinion = self.opinion_pairs[opinion]
             provider = self.opinions_dict[opinion][1]
+
             # Separate positive feedback from negative feedback
             for i, reward in feedback_values[opinion]:
                 if reward > 0:
@@ -458,3 +461,31 @@ class Environment(AECEnv):
         # Calculate situational trust
         situational_trust = self.direct_exp_weight * direct_exp_score + (1 - self.direct_exp_weight) * feedback_score
         return situational_trust
+    
+    def _calculate_average_situational_trust(self):
+        """
+        Calculate average situational trust and dynamic thresholds for each service provider.
+        Returns:
+            mean_trusts (np.ndarray): Mean trust values for each provider.
+            dynamic_thresholds (np.ndarray): Dynamic thresholds for each provider.
+        """
+        # Initialise arrays to collect trust values for each provider
+        situational_trust_values = [[] for _ in range(self.nProviders)]
+
+        # Collect situational trust values for each provider
+        for agent_trust in self.observations.values():
+            for provider in range(self.nProviders):
+                situational_trust_values[provider].append(agent_trust[provider])
+
+        # Compute mean and standard deviation for each provider
+        mean_trusts = np.zeros(self.nProviders, dtype=float)
+        std_trusts = np.zeros(self.nProviders, dtype=float)
+        for provider in range(self.nProviders):
+            trust_values = situational_trust_values[provider]
+            mean_trusts[provider] = np.mean(trust_values)
+            std_trusts[provider] = np.std(trust_values)
+
+        # Compute dynamic thresholds
+        dynamic_thresholds = mean_trusts - std_trusts
+
+        return dynamic_thresholds
