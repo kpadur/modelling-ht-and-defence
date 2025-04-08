@@ -8,6 +8,7 @@
 from environment_exp1 import Environment
 from a2c_agent import A2CRegAgent
 from data_analysis import process_regagent_rewards
+from save_data import read_csv_to_dict, save_data_to_csv
 import numpy as np
 import pandas as pd
 import torch
@@ -26,8 +27,8 @@ experiment = 1
 
 # %% [markdown]
 # Specify output directory
-output_dir = os.path.join("results")
-save_path = os.path.join("results", "model_output")
+save_path = os.path.join("results", "exp1-results")
+nn_path = os.path.join("regagent-parameters")
 
 # %% [markdown]
 # Specify number of agents in the environment
@@ -37,9 +38,7 @@ nMalAgents = 0
 
 # %% [markdown]
 # Initialise (tuned) hyperparameters
-df = pd.read_csv("hyperparameters.csv")
-hyperparameters = dict(zip(df['hyperparameter'], df['value']))
-
+hyperparameters = read_csv_to_dict("parameters/hyperparameters.csv")
 alpha_rnn1 = hyperparameters['alpha_1']
 alpha_rnn2 = hyperparameters['alpha_2']
 gamma_rnn1 = hyperparameters['gamma_1']
@@ -50,23 +49,22 @@ beta_decay = int(hyperparameters['n_1'])
 
 # %% [markdown]
 # Initialise social network, cyber-physical system, and agent parameters
-df = pd.read_csv("parameters.csv")
-parameters = dict(zip(df['parameter'], df['value']))
+parameters = read_csv_to_dict("parameters/parameters.csv")
 
 # Social network parameters
 kappa = int(parameters['kappa'])
 rho = parameters['rho']
 
 # Cyber-physical system parameters
-center_up_to_down = [parameters['center_up_to_down']] * nProviders # Psi: prob (1 to -1)
-center_down_to_up = [parameters['center_down_to_up']] * nProviders # psi: prob (-1 to 1)
-end_up_to_down = [parameters['end_up_to_down']] * nProviders # Lambda: prob (1 to -1)
-end_down_to_up = [parameters['end_down_to_up']] * nProviders # lambda: prob (-1 to 1)
+center_up_to_down = [parameters['center_up_to_down']] * nProviders  # Psi: prob (1 to -1)
+center_down_to_up = [parameters['center_down_to_up']] * nProviders  # psi: prob (-1 to 1)
+end_up_to_down = [parameters['end_up_to_down']] * nProviders        # Lambda: prob (1 to -1)
+end_down_to_up = [parameters['end_down_to_up']] * nProviders        # lambda: prob (-1 to 1)
 cost = [parameters['cost']] * nProviders
 
 # Agents' attributes (parameters)
 direct_exp_weight = parameters['direct_exp_weight']
-satisfaction_threshold = parameters['satisfaction_threshold']
+feedback_adj_rate = parameters['feedback_adj_rate']
 forgetting_factor = parameters['forgetting_factor']
 
 # %% [markdown]
@@ -74,14 +72,13 @@ forgetting_factor = parameters['forgetting_factor']
 n_steps = 500 # number of steps per episode
 number_of_episodes = 500
 vis_freq = 10
-saving_freq = 2
-save_fig = True
-save_nns = False
-
+saving_freq = 10
+save_fig = False
+save_nns = True
 
 # %% [markdown]
 # Initialise seed for reproducibility
-seed = 5282
+seed = 0
 random.seed(seed)
 np.random.seed(seed)
 torch.manual_seed(seed)
@@ -90,12 +87,12 @@ if torch.cuda.is_available():
 
 # %% [markdown]
 # Create environment
-env = Environment(nRegAgents, nMalAgents, nProviders, 
+env = Environment(nRegAgents, nProviders, 
                   kappa, rho, center_up_to_down, center_down_to_up, end_up_to_down, end_down_to_up, cost,
-                  direct_exp_weight, satisfaction_threshold, forgetting_factor)
+                  direct_exp_weight, feedback_adj_rate, forgetting_factor)
 
 # Create lists of agents, form social network of agents, and create attributes
-regagents, malagents, providers = env.regagents, env.malagents, env.providers
+regagents, providers = env.regagents, env.providers
 
 # Pick one agent randomly from each type of agents
 regagent_example = np.random.choice(regagents)
@@ -115,19 +112,19 @@ print("Regular agents' state shape is", state_shape, ", number of actions is", n
 fig = env.render(graph_type='actions')
 plt.show()
 if save_fig:
-    fig.savefig(os.path.join(output_dir, f'ch{chapter}-exp{experiment}-{date}-{seed}-environment.png'))
+    fig.savefig(os.path.join(save_path, f'ch{chapter}-exp{experiment}-{date}-{seed}-environment.png'))
     plt.clf()
+
 # %% [markdown]
 # Create regular agents
-regular_agents = {f"regagent{agent}": A2CRegAgent(state_shape, n_actions, n_opinions, alpha_rnn1, alpha_rnn2, device) for agent in env.regagents}
-
+regular_agents = {f"regagent{agent}": A2CRegAgent(state_shape, n_actions, n_opinions, alpha_rnn1, alpha_rnn2, device) 
+                  for agent in env.regagents}
 # %% [markdown]
 # Collect data
-total_rewards, action_rewards, opinion_rewards = np.zeros(number_of_episodes + 1), np.zeros(number_of_episodes + 1), np.zeros(number_of_episodes + 1)
+total_rewards, action_rewards, opinion_rewards = np.zeros(number_of_episodes + 1),  np.zeros(number_of_episodes + 1), np.zeros(number_of_episodes + 1)
 
-loss1_agents, loss2_agents = np.zeros((number_of_episodes + 1, len(regagents))), np.zeros((number_of_episodes + 1, len(regagents)))
-mean_loss1, mean_loss2 = np.zeros(number_of_episodes + 1), np.zeros(number_of_episodes + 1)
-
+loss1_agents, loss2_agents = np.zeros((number_of_episodes + 1, len(env.regagents))), np.zeros((number_of_episodes + 1, len(env.regagents)))
+loss1_history, loss2_history = np.zeros(number_of_episodes + 1), np.zeros(number_of_episodes + 1)
 
 # %% [markdown]
 # Train, evaluate, and visualise the agent's behaviour
@@ -159,14 +156,15 @@ for episode in range(1, number_of_episodes + 1):
         # Perform actions, determine next state, reward, and termination
         observations, rewards, terminations, truncations, infos = env.step(actions)
 
-        if timestep % 10 == 0:
+        # Render environment
+        if episode in [1,100,500] and timestep == 500:
             clear_output(wait=True)  # Clear the previous output
             fig = env.render(graph_type='both')  # Render the graph for the current timestep
-            fig.text(0.01, 0.90, f'Episode: {episode}', ha='left', fontsize=14, color='black') # Add dynamic text (episode and timestep) to the figure
-            fig.text(0.01, 0.86, f'Timestep: {timestep}', ha='left', fontsize=14, color='black') # Add dynamic text (episode and timestep) to the figure
-            plt.show()  # Display the new figure
+            fig.text(0.01, 0.90, f'Episode: {episode}', ha='left', fontsize=14, color='black')
+            fig.text(0.01, 0.86, f'Timestep: {timestep}', ha='left', fontsize=14, color='black')
+            plt.show()
             if save_fig:
-                fig.savefig(os.path.join(output_dir, f'ch{chapter}-exp{experiment}-{date}-{seed}-{episode}-{timestep}-environment.png'))
+                fig.savefig(os.path.join(save_path, f'ch{chapter}-exp{experiment}-{date}-{seed}-{episode}-environment.png'))
                 plt.clf()
 
         # Store the rewards, observations, and actions for each agent for the current timestep
@@ -188,58 +186,58 @@ for episode in range(1, number_of_episodes + 1):
     action_rewards[episode] = service
     opinion_rewards[episode] = feedback
 
-    # Calculate episode mean loss over all agents
-    mean_loss1[episode] = np.mean(loss1_agents[episode]) # mean loss for actions
-    mean_loss2[episode] = np.mean(loss2_agents[episode]) # mean loss for opinions
+    # Process regagents loss
+    loss1_history[episode] = np.mean(loss1_agents[episode])
+    loss2_history[episode] = np.mean(loss2_agents[episode])
         
     # Visualise data
     if episode != 1 and episode % vis_freq == 0:
         clear_output(True)
-        # Plot 1: Visualise average cumulative reward
+        # Plot 1: Visualise cumulative reward
         plt.figure()
         plt.plot(total_rewards[1:episode], linewidth=0.9, color = 'mediumvioletred', label = "Cumulative reward")
-        plt.plot(action_rewards[1:episode], linewidth=0.9, color = 'red', label = "Cumulative reward for actions")
-        plt.plot(opinion_rewards[1:episode], linewidth=0.9, color = 'orange', label = "Cumulative reward for opinions")
-        plt.xlabel("Episodes")
+        plt.plot(action_rewards[1:episode], linewidth=0.9, color = 'red', label = "Service reward")
+        plt.plot(opinion_rewards[1:episode], linewidth=0.9, color = 'orange', label = "Feedback reward")
+        plt.xlabel("Episode")
         plt.ylabel("Cumulative reward\nfor regular agents per episode")
         plt.grid()
         plt.legend(loc=(0.01,0.50), fontsize='x-small')
         if save_fig:
-            plt.savefig(os.path.join(output_dir, f'ch{chapter}-exp{experiment}-{date}-{seed}-regagent-score.png'))
+            plt.savefig(os.path.join(save_path, f'ch{chapter}-exp{experiment}-{date}-{seed}-score.png'))
             plt.clf()
 
-        # Plot 3.1/3.2: Visualise loss/objective value per episode
+        # Plot 2.1/2.2: Visualise loss/objective value per episode
         fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(15, 4))
-        axs[0].plot(mean_loss1[1:episode], linewidth=0.9, color = 'red')
+        axs[0].plot(loss1_history[1:episode], linewidth=0.9, color = 'red')
         axs[0].set_xlabel("Episode")
-        axs[0].set_ylabel("Mean loss (actions)")
+        axs[0].set_ylabel("Loss (actions)")
         axs[0].grid()
-        axs[1].plot(mean_loss2[1:episode], linewidth=0.9, color = 'orange')
+        axs[1].plot(loss2_history[1:episode], linewidth=0.9, color = 'orange')
         axs[1].set_xlabel("Episode")
-        axs[1].set_ylabel("Mean loss (opinions)")
+        axs[1].set_ylabel("Loss (opinions)")
         axs[1].grid()
         if save_fig:
-            plt.savefig(os.path.join(output_dir, f'ch{chapter}-exp{experiment}-{date}-{seed}-regagent-actions-opinions.png'))
+            plt.savefig(os.path.join(save_path, f'ch{chapter}-exp{experiment}-{date}-{seed}-loss.png'))
             plt.clf()
         plt.show()
 
 # %% [markdown]
 # Save data
 regular_agent_reward_loss_df = pd.DataFrame({'total_rewards': total_rewards, 'action_rewards': action_rewards, 'opinion_rewards': opinion_rewards,
-                             'mean_loss1': mean_loss1, 'mean_loss2': mean_loss2})
+                             'mean_loss1': loss1_history, 'mean_loss2': loss2_history})
 # Save dataframes to csv
 regular_agent_reward_loss_df.to_csv(os.path.join(output_dir, f'ch{chapter}-exp{experiment}-{date}-{seed}-regagents-data.csv'), index = False)
 
 # %% [markdown]
-# Save nns
+# Save models
 if save_nns:
     for agent_name, agent in regular_agents.items():
         torch.save({
             'actions_state_dict': agent.action_nn.state_dict(),
             'actions_opt_state_dict': agent.action_opt.state_dict(),
-        }, f'{save_path}{agent_name}-checkpoint-actions-{date}.pth')
+        }, f'{agent_name}_checkpoint_actions.pth')
 
         torch.save({
             'opinions_state_dict': agent.opinion_nn.state_dict(),
             'opinions_opt_state_dict': agent.opinion_opt.state_dict(),
-        }, f'{save_path}{agent_name}-checkpoint-opinions{date}.pth')
+        }, f'{agent_name}_checkpoint_opinions.pth')
