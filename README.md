@@ -4,28 +4,26 @@ Hybrid threats are a growing concern due to their potential to undermine public 
 ## Project structure
 ```
 modelling-ht-and-defence/
-├── train_regular_agents.py          # Experiment for training regular agents (experiment 1)
-├── train_marl.py                    # Experiment for training attackers and defenders (experiment 2)
-├── environment_exp1.py              # Environment setup for experiment 1
-├── environment_exp2.py              # Environment setup for experiment 2
+├── parameters                       # Folder containing parameters
+    ├── hyperparameters.csv          # Hyperparameters
+    └── parameters.csv               # Parameters
+├── regagent-parameters              # Folder containing trained regular agents neural networks
+├── results                          # Folder containing results and R scripts for data analysis
+    ├── exp1-results                 # Folder containing example data from experiment 1
+    ├── exp2-results                 # Folder containing example data from experiment 2
+    ├── exp1-analysis.R              # R script for analysing and visualising experiment 1 data
+    ├── exp2-attack-analysis.R       # R script for analysing and visualising attacker behaviour
+    └── exp2-defence-analysis.R      # R script for analysing and visualising defender behaviour
 ├── a2c_agent.py                     # Regular agents' behaviour in the environment
 ├── a2c_def_agent.py                 # Defenders' behaviour in the environment
 ├── a2c_mal_agent.py                 # Attackers' behaviour in the environment
-├── nns.py                           # Architecture of deep neural networks
 ├── data_analysis.py                 # Functions to analyse training data
+├── environment_exp1.py              # Environment setup for experiment 1
+├── environment_exp2.py              # Environment setup for experiment 2
+├── nns.py                           # Architecture of deep neural networks
 ├── save_data.py                     # Functions to save data
-├── parameters                       # Folder containing data and R scripts for hyperparameter tuning
-    ├── hyperparameters.csv          # (Tuned) hyperparameter values
-    └── parameters.csv               # Parameter values
-├── regagent-parameters              # Folder containing trained regular agents neural networks
-├── results                          # Folder containing R scripts for data analysis and visualisation
-    ├── exp1-results                 # Data collected from experiment 1
-    ├── exp2-results                 # Data collected from experiment 2
-    └── plots                        # Figures
-├── R-scripts                        # Folder containing R scripts for data analysis and visualisation
-    ├── ch3-exp1-analysis.R          # R script for analysing and visualising experiment 1 data
-    ├── ch3-exp2-attack-analysis.R   # R script for analysing and visualising attacker behaviour
-    └── ch3-exp2-defence-analysis.R  # R script for analysing and visualising defender behaviour
+├── train_regular_agents.py          # Experiment for training regular agents (experiment 1)
+├── train_marl.py                    # Experiment for training attackers and defenders (experiment 2)
 ├── LICENSE.md                       # License
 └── README.md                        # Project documentation
 ```
@@ -60,8 +58,6 @@ python train_marl.py
 ```
 ## Results
 Results will be saved to ```/results``` directory. Experiment 1 results are located in ```/results/exp1-results``` and experiment 2 results are located in ```/results/exp2-results```.
-
-Plots generated with R scripts using data generated during training are located in ```/results/plots```.
 
 Directory ```/regagent-parameters``` contains trained deep neural networks from experiment 1 that are used in experiment 2.
 
