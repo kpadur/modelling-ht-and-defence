@@ -3,8 +3,6 @@
 library(readr)
 library(ggplot2)
 library(zoo)
-library(dplyr)
-library(tidyr)
 
 #####
 # Attacker rewards: Analyse the effectiveness of attackers' performance
