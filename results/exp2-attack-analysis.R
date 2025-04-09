@@ -191,7 +191,7 @@ a1 <- ggplot() +
                                 "Rewards for a cyberattack" = "#FF9900",
                                 "Rewards for disinformation" = "#006633",
                                 "Rewards for termination" = "#666666")) +
-  labs(x = "Episode", y = "Average cumulative reward\nfor attackers\n(across 100 simulations)", color = NULL) +
+  labs(x = "Episode", y = "Average cumulative reward for attackers\n(across 100 simulations)", color = NULL) +
   theme_bw() +
   theme(
     legend.position = c(0.20, 0.70),
