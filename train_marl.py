@@ -241,13 +241,6 @@ for episode in range(1, number_of_episodes + 1):
             fig.text(0.01, 0.86, f'Timestep: {timestep}', ha='left', fontsize=14, color='black')
             plt.show()
 
-        # Service providers service availability        
-        for agent_name, agent in regular_agents.items():
-                provider = actions[agent_name][0]
-                if env.service_received[agent_name][provider] !=[] and \
-                    env.service_received[agent_name][provider][-1][1] == 1:
-                    sum_sp_availability[provider] += 1
-
         # Store the rewards, observations, and actions for each agent for the current timestep
         for agent_name in agent_ids:
             if agent_name != "malagent":
