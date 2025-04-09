@@ -31,7 +31,7 @@ modelling-ht-and-defence/
 MIT
 ## Prerequisites
 ```
-Python 3.10 or higher version is required.
+Python 3.9 or higher version is required.
 
 The following Python libraries are required:
 - numpy (version 1.24.2 or higher)
