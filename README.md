@@ -41,6 +41,7 @@ The following Python libraries are required:
 - gymnasium (version 0.29.1 or higher)
 - networkx (version 3.0 or higher)
 - pettingzoo (version 1.24.1 or higher)
+- IPython (version 8.18.1 or higher)
 
 R version 4.3.1 or higher version is required for data analysis and visualisation.
 
