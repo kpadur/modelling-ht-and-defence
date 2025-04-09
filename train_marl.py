@@ -84,7 +84,6 @@ forgetting_factor = parameters['forgetting_factor']
 # Define training time, visualisation and saving frequency
 n_steps = 100 # number of steps per episode
 number_of_episodes = 20000
-eval_freq = 100
 vis_freq = 100
 saving_freq = 1000
 save_fig = False
@@ -233,13 +232,6 @@ for episode in range(1, number_of_episodes + 1):
 
         # Perform actions, determine next state, reward, and termination
         observations, rewards, _, _, _ = env.step(actions)
-
-        if timestep % 10 == 0:
-            clear_output(wait=True)  # Clear the previous output
-            fig = env.render(graph_type='both')  # Render the graph for the current timestep
-            fig.text(0.01, 0.90, f'Episode: {episode}', ha='left', fontsize=14, color='black')
-            fig.text(0.01, 0.86, f'Timestep: {timestep}', ha='left', fontsize=14, color='black')
-            plt.show()
 
         # Store the rewards, observations, and actions for each agent for the current timestep
         for agent_name in agent_ids:
