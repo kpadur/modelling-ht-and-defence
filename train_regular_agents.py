@@ -72,7 +72,6 @@ forgetting_factor = parameters['forgetting_factor']
 n_steps = 500 # number of steps per episode
 number_of_episodes = 500
 vis_freq = 10
-saving_freq = 10
 save_fig = False
 save_nns = True
 
