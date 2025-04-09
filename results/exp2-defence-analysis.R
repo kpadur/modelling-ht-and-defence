@@ -3,7 +3,6 @@
 # Load libraries
 library(readr)
 library(ggplot2)
-library(cowplot)
 
 # Import data
 path <- "exp2-results/"
